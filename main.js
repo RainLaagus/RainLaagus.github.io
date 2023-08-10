@@ -6,7 +6,6 @@ let lastName = "";
 let startDate = "";
 let totalXP = 0;
 
-
 function getAllData(JWT) {
     const query = `
     {
@@ -56,6 +55,7 @@ function getAllData(JWT) {
             console.error("Error:", error);
         });
 }
+
 function handleQueryData(data) {
     // Extract the maximum values for each skill type
     data.data.skills.forEach(function (transaction) {
@@ -106,8 +106,8 @@ function handleQueryData(data) {
     });
 
     document.getElementById("name").innerHTML = "Welcome, " + firstName + " " + lastName + "!";
-    document.getElementById("date").innerHTML = (`Your kood/Jõhvi journey started on ${formattedDate}!`);
-    document.getElementById("totalXP").innerHTML = (`Your total XP amount is ${totalXP} bytes!`);
+    document.getElementById("date").innerHTML = (`Your kood/Jõhvi journey started on ${formattedDate}`);
+    document.getElementById("totalXP").innerHTML = (`Your total XP amount is ${totalXP} bytes`);
 
     updateCharts();
 }
@@ -115,7 +115,6 @@ function handleQueryData(data) {
 function login() {
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
-
     const credentials = `${username}:${password}`;
     const encodedCredentials = btoa(credentials);
 
@@ -201,16 +200,16 @@ function showChart(chartId) {
 
 function createSkillsChart() {
     // Set up the chart dimensions
-    var margin = { top: 100, right: 20, bottom: 60, left: 40 };
+    let margin = { top: 100, right: 20, bottom: 60, left: 40 };
     d3.select("#skillChart").selectAll("*").remove();
 
     // Set up the chart dimensions based on the new window size
-    var width = window.innerWidth - margin.left - margin.right;
-    var height = window.innerHeight - margin.top - margin.bottom;
-    var centerX = width / 2 + margin.left;
-    var centerY = height / 2 + margin.top;
+    let width = window.innerWidth - margin.left - margin.right;
+    let height = window.innerHeight - margin.top - margin.bottom;
+    let centerX = width / 2 + margin.left;
+    let centerY = height / 2 + margin.top;
     // Create SVG element
-    var svg = d3.select("#skillChart")
+    let svg = d3.select("#skillChart")
         .append("svg")
         .attr("width", width + margin.left + margin.right)
         .attr("height", height + margin.top + margin.bottom)
@@ -218,23 +217,23 @@ function createSkillsChart() {
         .attr("transform", "translate(" + centerX + "," + centerY + ")");
 
     // Set up scales
-    var skills = Object.keys(skillsData);
-    var numSkills = skills.length;
-    var angleSlice = Math.PI * 2 / numSkills;
+    let skills = Object.keys(skillsData);
+    let numSkills = skills.length;
+    let angleSlice = Math.PI * 2 / numSkills;
 
-    var maxValue = d3.max(Object.values(skillsData));
-    var radiusScale = d3.scaleLinear()
+    let maxValue = d3.max(Object.values(skillsData));
+    let radiusScale = d3.scaleLinear()
         .domain([0, maxValue])
         .range([0, Math.min(width / 2, height / 2)]);
 
     // Define colors
-    var colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+    let colorScale = d3.scaleOrdinal(d3.schemeCategory10);
 
     // Create axes
-    var axes = skills.map(function (skill, index) {
-        var angle = index * angleSlice;
-        var x = radiusScale(maxValue) * Math.cos(angle - Math.PI / 2);
-        var y = radiusScale(maxValue) * Math.sin(angle - Math.PI / 2);
+    let axes = skills.map(function (skill, index) {
+        let angle = index * angleSlice;
+        let x = radiusScale(maxValue) * Math.cos(angle - Math.PI / 2);
+        let y = radiusScale(maxValue) * Math.sin(angle - Math.PI / 2);
         return { skill: skill, x: x, y: y };
     });
 
@@ -262,11 +261,10 @@ function createSkillsChart() {
                 .text(d.skill);
         });
 
-
     // Draw percentage circles
-    for (var i = 1; i <= 10; i++) {
-        var percentage = i * 10;
-        var radius = (percentage / 100) * radiusScale(maxValue);
+    for (let i = 1; i <= 10; i++) {
+        let percentage = i * 10;
+        let radius = (percentage / 100) * radiusScale(maxValue);
 
         svg.append("circle")
             .attr("class", "percentage-circle")
@@ -280,11 +278,11 @@ function createSkillsChart() {
 
     // Draw data points and labels
     skills.forEach(function (skill, index) {
-        var angle = index * angleSlice;
-        var value = skillsData[skill];
+        let angle = index * angleSlice;
+        let value = skillsData[skill];
 
-        var x = radiusScale(value) * Math.cos(angle - Math.PI / 2);
-        var y = radiusScale(value) * Math.sin(angle - Math.PI / 2);
+        let x = radiusScale(value) * Math.cos(angle - Math.PI / 2);
+        let y = radiusScale(value) * Math.sin(angle - Math.PI / 2);
 
         svg.append("circle")
             .attr("class", "radar-point")
@@ -304,34 +302,33 @@ function createSkillsChart() {
 }
 
 function createAuditChart() {
-    var margin = { top: 100, right: 20, bottom: 60, left: 40 };
+    let margin = { top: 100, right: 20, bottom: 60, left: 40 };
     d3.select("#auditChart").selectAll("*").remove();
 
     // Set up the chart dimensions based on the new window size
-    var width = window.innerWidth - margin.left - margin.right;
-    var height = window.innerHeight - margin.top - margin.bottom;
-    var radius = Math.min(width, height) / 2;
-
-    var color = d3.scaleOrdinal(d3.schemeCategory10);
-    var centerY = height / 2 + 50; // Add 50 for the title
+    let width = window.innerWidth - margin.left - margin.right;
+    let height = window.innerHeight - margin.top - margin.bottom;
+    let radius = Math.min(width, height) / 2;
+    let color = d3.scaleOrdinal(d3.schemeCategory10);
+    let centerY = height / 2 + 50;
 
     // Create SVG element
-    var svg = d3.select("#auditChart")
+    let svg = d3.select("#auditChart")
         .append("svg")
         .attr("width", width)
-        .attr("height", height + 50) // Add 50 for the title
+        .attr("height", height + 50)
         .append("g")
         .attr("transform", "translate(" + width / 2 + "," + centerY + ")"); // Adjust y-position
 
-    var arc = d3.arc()
+    let arc = d3.arc()
         .outerRadius(radius - 10)
         .innerRadius(0);
 
-    var pie = d3.pie()
+    let pie = d3.pie()
         .sort(null)
         .value(function (d) { return d.value; });
 
-    var g = svg.selectAll(".arc")
+    let g = svg.selectAll(".arc")
         .data(pie(auditData.totals))
         .enter().append("g")
         .attr("class", "arc");
@@ -367,8 +364,8 @@ function createTasksChart() {
     d3.select("#tasksChart").selectAll("*").remove();
 
     // Set up the chart dimensions based on the new window size
-    var width = window.innerWidth - margin.left - margin.right;
-    var height = window.innerHeight - margin.top - margin.bottom;
+    let width = window.innerWidth - margin.left - margin.right;
+    let height = window.innerHeight - margin.top - margin.bottom;
 
     // Append the svg object to the chart div
     const svg = d3.select("#tasksChart")
