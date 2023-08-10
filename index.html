@@ -20,11 +20,19 @@
     <button id="logout" class="logout hidden">Logout</button>
     <br>
     <div id="userInfo" class="userInfo">
-        <div id="skillChart">
-        </div>
+        <h1 id="name"></h1>
+        <h2 id="date"></h2>
+        <h2 id="totalXP"></h2>
     </div>
-    <div id="charts" class="charts">
-        <div id="auditChart"></div>
+    <div id="charts" class="charts hidden">
+        <div id="chartButtons">
+            <button id="skillsButton">Skills Chart</button>
+            <button id="auditButton">Audit Chart</button>
+            <button id="tasksButton">Tasks Chart</button>
+        </div>
+        <div id="skillChart" class="chart"></div>
+        <div id="auditChart" class="chart"></div>
+        <div id="tasksChart" class="chart"></div>
     </div>
 
 

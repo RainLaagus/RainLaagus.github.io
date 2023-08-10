@@ -1,47 +1,36 @@
-function getSkillData(JWT) {
-    const skillsQuery = `
-    query {
-        transaction(
-            where: {
-            type: {_regex: "skill"}
-            },
-            order_by: {amount: desc},
-            limit: 50,
-        ) {
-            amount
-            type
-        }
-    }
-  `;
+let skillsData = {};
+let auditData = {};
+let tasksData = {};
+let firstName = "";
+let lastName = "";
+let startDate = "";
+let totalXP = 0;
 
-    fetch("https://01.kood.tech/api/graphql-engine/v1/graphql", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${JWT}`
-        },
-        body: JSON.stringify({ query: skillsQuery })
-    })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(data => {
-            createSkillsChart(data)
-        })
-        .catch(error => {
-            console.error("Error:", error);
-        });
-}
 
-function getAuditData(JWT) {
-    const auditQuery = `
+function getAllData(JWT) {
+    const query = `
     {
-        transaction(where: { type: { _in: ["up", "down"] } }) {
+        information: user {
+          firstName
+          lastName
+          createdAt
+          auditRatio
+          totalUp
+          totalDown
+        }
+        skills: transaction(
+          where: {type: {_regex: "skill"}}
+          order_by: {amount: desc}
+        ) {
           amount
           type
+        }
+        tasks: transaction(
+          where: {type: {_regex: "xp"}, path: {_nregex: "piscine"}}
+          order_by: {createdAt: desc}
+        ) {
+          path
+          amount
         }
       }
   `;
@@ -52,7 +41,7 @@ function getAuditData(JWT) {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${JWT}`
         },
-        body: JSON.stringify({ query: auditQuery })
+        body: JSON.stringify({ query: query })
     })
         .then(response => {
             if (!response.ok) {
@@ -61,11 +50,66 @@ function getAuditData(JWT) {
             return response.json();
         })
         .then(data => {
-            createAuditChart(data)
+            handleQueryData(data)
         })
         .catch(error => {
             console.error("Error:", error);
         });
+}
+function handleQueryData(data) {
+    // Extract the maximum values for each skill type
+    data.data.skills.forEach(function (transaction) {
+        let skillType = transaction.type.replace(/^skill_/, '');
+        let amount = transaction.amount;
+        if (!skillsData[skillType] || amount > skillsData[skillType]) {
+            skillsData[skillType] = amount;
+        }
+    });
+
+    // Sum up audits done and received xp and calculate the audit ratio
+    let information = data.data.information[0]
+    let auditsDoneXp = information.totalUp;
+    let auditsReceivedXp = information.totalDown;
+
+    auditData = {
+        totals: [{
+            title: "Audits done",
+            value: auditsDoneXp,
+            all: auditsDoneXp + auditsReceivedXp
+        },
+        {
+            title: "Audits received",
+            value: auditsReceivedXp,
+            all: auditsDoneXp + auditsReceivedXp
+        }],
+        auditRatio: Math.round(information.auditRatio * 100) / 100
+    }
+
+    // Extract all tasks info that are not a piscine tasks
+    data.data.tasks.forEach(transaction => {
+        const regex = /\/([^/]+)$/;
+        tasksData[transaction.path.match(regex)[1]] = transaction.amount;
+        totalXP += transaction.amount;
+    });
+
+    // Handle personal information
+    firstName = information.firstName;
+    lastName = information.lastName;
+    let date = new Date(information.createdAt);
+    const formattedDate = date.toLocaleString('en-GB', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric',
+    });
+
+    document.getElementById("name").innerHTML = "Welcome, " + firstName + " " + lastName + "!";
+    document.getElementById("date").innerHTML = (`Your kood/Jõhvi journey started on ${formattedDate}!`);
+    document.getElementById("totalXP").innerHTML = (`Your total XP amount is ${totalXP} bytes!`);
+
+    updateCharts();
 }
 
 function login() {
@@ -91,10 +135,10 @@ function login() {
         })
         .then(data => {
             if (data) {
-                document.getElementById("loginForm").classList.add("hidden")
-                document.getElementById("logout").classList.remove("hidden")
-                getSkillData(data)
-                getAuditData(data)
+                document.getElementById("loginForm").classList.add("hidden");
+                document.getElementById("logout").classList.remove("hidden");
+                document.getElementById("charts").classList.remove("hidden");
+                getAllData(data);
             }
         })
         .catch(error => {
@@ -105,7 +149,17 @@ function login() {
 function logout() {
     document.getElementById("loginForm").classList.remove("hidden")
     document.getElementById("logout").classList.add("hidden")
+    document.getElementById("charts").classList.add("hidden")
+    skillsData, auditData, tasksData = {};
+    firstName, lastName, startDate = "";
+    totalXP = 0;
     location.reload();
+}
+
+function updateCharts() {
+    createSkillsChart();
+    createAuditChart();
+    createTasksChart();
 }
 
 document.getElementById("loginForm").addEventListener("submit", function (event) {
@@ -118,24 +172,43 @@ document.getElementById("logout").addEventListener("click", function (event) {
     logout();
 });
 
-function createSkillsChart(data) {
-    // Extract the maximum values for each skill type
-    var skillMaxValues = {};
-    data.data.transaction.forEach(function (transaction) {
-        var skillType = transaction.type;
-        var amount = transaction.amount;
-        if (!skillMaxValues[skillType] || amount > skillMaxValues[skillType]) {
-            skillMaxValues[skillType] = amount;
+document.getElementById("skillsButton").addEventListener("click", function () {
+    showChart("skillChart");
+});
+
+document.getElementById("auditButton").addEventListener("click", function () {
+    showChart("auditChart");
+});
+
+document.getElementById("tasksButton").addEventListener("click", function () {
+    showChart("tasksChart");
+});
+
+window.addEventListener("resize", updateCharts);
+
+// Function to show the selected chart and hide others
+function showChart(chartId) {
+    const charts = ["skillChart", "auditChart", "tasksChart"];
+
+    charts.forEach(chart => {
+        if (chart === chartId) {
+            document.getElementById(chart).style.display = "block";
+        } else {
+            document.getElementById(chart).style.display = "none";
         }
     });
+}
 
+function createSkillsChart() {
     // Set up the chart dimensions
     var margin = { top: 100, right: 20, bottom: 60, left: 40 };
-    var width = 800 - margin.left - margin.right;
-    var height = 400 - margin.top - margin.bottom;
+    d3.select("#skillChart").selectAll("*").remove();
+
+    // Set up the chart dimensions based on the new window size
+    var width = window.innerWidth - margin.left - margin.right;
+    var height = window.innerHeight - margin.top - margin.bottom;
     var centerX = width / 2 + margin.left;
     var centerY = height / 2 + margin.top;
-
     // Create SVG element
     var svg = d3.select("#skillChart")
         .append("svg")
@@ -145,11 +218,11 @@ function createSkillsChart(data) {
         .attr("transform", "translate(" + centerX + "," + centerY + ")");
 
     // Set up scales
-    var skills = Object.keys(skillMaxValues);
+    var skills = Object.keys(skillsData);
     var numSkills = skills.length;
     var angleSlice = Math.PI * 2 / numSkills;
 
-    var maxValue = d3.max(Object.values(skillMaxValues));
+    var maxValue = d3.max(Object.values(skillsData));
     var radiusScale = d3.scaleLinear()
         .domain([0, maxValue])
         .range([0, Math.min(width / 2, height / 2)]);
@@ -178,13 +251,17 @@ function createSkillsChart(data) {
                 .attr("stroke", "#ccc")
                 .attr("stroke-width", 1);
 
+            const labelX = d.x * 1.08; // Adjust label position
+            const labelY = d.y * 1.08; // Adjust label position
+
             d3.select(this).append("text")
-                .attr("x", d.x * 1.25) // Adjust label position
-                .attr("y", d.y * 1.25) // Adjust label position
+                .attr("x", labelX)
+                .attr("y", labelY)
                 .attr("text-anchor", "middle")
                 .style("font-size", "14px")
                 .text(d.skill);
         });
+
 
     // Draw percentage circles
     for (var i = 1; i <= 10; i++) {
@@ -204,7 +281,7 @@ function createSkillsChart(data) {
     // Draw data points and labels
     skills.forEach(function (skill, index) {
         var angle = index * angleSlice;
-        var value = skillMaxValues[skill];
+        var value = skillsData[skill];
 
         var x = radiusScale(value) * Math.cos(angle - Math.PI / 2);
         var y = radiusScale(value) * Math.sin(angle - Math.PI / 2);
@@ -226,46 +303,13 @@ function createSkillsChart(data) {
 
 }
 
+function createAuditChart() {
+    var margin = { top: 100, right: 20, bottom: 60, left: 40 };
+    d3.select("#auditChart").selectAll("*").remove();
 
-
-
-function createAuditChart(data) {
-
-    const transactions = data.data.transaction;
-
-    let upTotal = 0;
-    let downTotal = 0;
-    let auditRatio = 0;
-
-    transactions.forEach(transaction => {
-        const type = transaction.type;
-
-        if (type === "up") {
-            upTotal += transaction.amount;
-        } else if (type === "down") {
-            downTotal += transaction.amount;
-        }
-    });
-
-    auditRatio = Math.round(upTotal / downTotal * 100) / 100
-
-    console.log(`Total "up" transactions: ${upTotal}`);
-    console.log(`Total "down" transactions: ${downTotal}`);
-    console.log(`ratio: ${auditRatio}`);
-
-    var totals = [{
-        title: "Audits done",
-        value: upTotal,
-        all: upTotal + downTotal
-    },
-    {
-        title: "Audits received",
-        value: downTotal,
-        all: upTotal + downTotal
-    }];
-
-    var width = 400;
-    var height = 400;
+    // Set up the chart dimensions based on the new window size
+    var width = window.innerWidth - margin.left - margin.right;
+    var height = window.innerHeight - margin.top - margin.bottom;
     var radius = Math.min(width, height) / 2;
 
     var color = d3.scaleOrdinal(d3.schemeCategory10);
@@ -288,7 +332,7 @@ function createAuditChart(data) {
         .value(function (d) { return d.value; });
 
     var g = svg.selectAll(".arc")
-        .data(pie(totals))
+        .data(pie(auditData.totals))
         .enter().append("g")
         .attr("class", "arc");
 
@@ -300,13 +344,87 @@ function createAuditChart(data) {
         .attr("transform", function (d) { return "translate(" + arc.centroid(d) + ")"; })
         .attr("dy", ".35em")
         .style("text-anchor", "middle")
-        .text(function (d) { return d.data.title; });
+        .text(function (d) { return d.data.title; })
+
+    g.append("text")
+        .attr("transform", function (d) { return "translate(" + arc.centroid(d) + ")"; })
+        .attr("dy", "1.5em")
+        .style("text-anchor", "middle")
+        .text(function (d) { return d.data.value + " xp" });
+
     svg.append("text")
         .attr("x", 0)
-        .attr("y", -height / 2 - 10)
+        .attr("y", -height / 2)
         .attr("text-anchor", "middle")
         .style("font-size", "20px")
         .style("text-decoration", "underline")
-        .text("Your audit ratio is " + auditRatio);
+        .text("Your audit ratio is " + auditData.auditRatio);
+}
 
+function createTasksChart() {
+    // Set up the dimensions and margins of the graph
+    const margin = { top: 50, right: 70, bottom: 90, left: 70 };
+    d3.select("#tasksChart").selectAll("*").remove();
+
+    // Set up the chart dimensions based on the new window size
+    var width = window.innerWidth - margin.left - margin.right;
+    var height = window.innerHeight - margin.top - margin.bottom;
+
+    // Append the svg object to the chart div
+    const svg = d3.select("#tasksChart")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform",
+            "translate(" + margin.left + "," + margin.top + ")");
+
+    // Define color scale
+    const color = d3.scaleLinear()
+        .domain([0, d3.max(Object.values(tasksData))])
+        .range(["#545885", "#0073e6"]); // Color gradient range
+
+    // X axis
+    const x = d3.scaleBand()
+        .range([0, width])
+        .domain(Object.keys(tasksData))
+        .padding(0.2);
+    svg.append("g")
+        .attr("transform", "translate(0," + height + ")")
+        .call(d3.axisBottom(x))
+        .selectAll("text")
+        .style("text-anchor", "end")
+        .style("font-size", "12px")
+        .attr("dx", "-.8em")
+        .attr("dy", ".15em")
+        .attr("transform", "rotate(-45)");
+
+    // Y axis
+    const y = d3.scaleLinear()
+        .domain([0, d3.max(Object.values(tasksData))])
+        .range([height, 0]);
+    svg.append("g")
+        .call(d3.axisLeft(y)
+            .tickFormat(d => d / 1000 + " kB")
+            .tickSize(-width)
+        );
+
+    // Bars
+    svg.selectAll("mybar")
+        .data(Object.entries(tasksData))
+        .enter()
+        .append("rect")
+        .attr("x", d => x(d[0]))
+        .attr("y", d => y(d[1]))
+        .attr("width", x.bandwidth())
+        .attr("height", d => height - y(d[1]))
+        .attr("fill", d => color(d[1]));
+
+    svg.append("text")
+        .attr("x", width / 2)
+        .attr("y", -10)
+        .attr("text-anchor", "middle")
+        .style("font-size", "20px")
+        .style("text-decoration", "underline")
+        .text("XP received from tasks");
 }

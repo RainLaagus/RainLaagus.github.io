@@ -62,6 +62,49 @@ button:hover {
     background-color: #0056b3;
 }
 
+#skillChart,
+#auditChart,
+#tasksChart {
+    display: none;
+}
+/* Update text color for axis labels */
+.axis text {
+    fill: white;
+}
+
+/* Update text color for chart titles */
+#name,
+#date,
+.userInfo h1,
+.userInfo h2,
+#skillChart text,
+#auditChart text,
+#tasksChart text {
+    fill: white;
+}
+#chartButtons {
+    display: flex;
+    justify-content: center; /* Align buttons horizontally */
+    margin-top: 20px; /* Add spacing */
+}
+
+#chartButtons button {
+    margin: 0 10px; /* Add spacing between buttons */
+}
+
+/* Update text color for audit chart labels */
+.arc text {
+    fill: white;
+}
+
+/* Update text color for percentage circles */
+.percentage-circle {
+    stroke: white;
+}
+.chart {
+    margin: 0 auto; /* Automatically center the charts horizontally */
+}
+
 .hidden {
     display: none;
 }
